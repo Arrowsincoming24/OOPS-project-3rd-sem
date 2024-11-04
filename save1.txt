@@ -1,0 +1,219 @@
+import java.util.*;
+import java.util.concurrent.*;
+
+// Generic class to store hotel or user data
+class DataContainer<T> {
+	private List<T> items;
+
+	// Constructor
+	public DataContainer() {
+		this.items = new ArrayList<>();
+	}
+
+	// Add an item to the container
+	public void add(T item) {
+		items.add(item);
+	}
+
+	// Get all items
+	public List<T> getAll() {
+		return items;
+	}
+}
+
+// Create class for hotel data.
+class Hotel implements Comparable<Hotel> {
+	static String sortParam = "name";
+	String name;
+	int roomAvl;
+	String location;
+	int rating;
+	int pricePr;
+	boolean wifi;
+	boolean gym;
+	boolean breakfast;
+
+	// Constructor
+	public Hotel(String name, int roomAvl, String location, int rating, int pricePr, boolean wifi, boolean gym, boolean breakfast) {
+		this.name = name;
+		this.roomAvl = roomAvl;
+		this.location = location;
+		this.rating = rating;
+		this.pricePr = pricePr;
+		this.wifi = wifi;
+		this.gym = gym;
+		this.breakfast = breakfast;
+	}
+
+	// Sorting parameter methods
+	public static void sortByName() { sortParam = "name"; }
+	public static void sortByRate() { sortParam = "rating"; }
+	public static void sortByRoomAvailable() { sortParam = "roomAvl"; }
+
+	@Override
+	public int compareTo(Hotel other) {
+		switch(sortParam) {
+			case "name":
+				return this.name.compareTo(other.name);
+			case "rating":
+				return Integer.compare(this.rating, other.rating);
+			case "roomAvl":
+				return Integer.compare(this.roomAvl, other.roomAvl);
+			default:
+				return 0;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "HotelName: " + this.name + ", Rooms Available: " + this.roomAvl + ", Location: " + this.location +
+			   ", Rating: " + this.rating + ", PricePerRoom: " + this.pricePr +
+			   ", WiFi: " + (wifi ? "Yes" : "No") + ", Gym: " + (gym ? "Yes" : "No") +
+			   ", Breakfast: " + (breakfast ? "Included" : "Not Included");
+	}
+}
+
+// User data class
+class User {
+	String uname;
+	int uId;
+	int cost;
+
+	// Constructor
+	public User(String uname, int uId, int cost) {
+		this.uname = uname;
+		this.uId = uId;
+		this.cost = cost;
+	}
+
+	@Override
+	public String toString() {
+		return "UserName: " + this.uname + ", UserId: " + this.uId + ", Booking Cost: " + this.cost;
+	}
+}
+
+// Sorting task class for multithreading
+class SortByRatingTask extends Thread {
+	private List<Hotel> hotels;
+
+	public SortByRatingTask(List<Hotel> hotels) {
+		this.hotels = hotels;
+	}
+
+	@Override
+	public void run() {
+		System.out.println("Sorting hotels by rating in a separate thread...");
+		Hotel.sortByRate();
+		Collections.sort(hotels);
+		for (Hotel h : hotels) {
+			System.out.println(h);
+		}
+	}
+}
+
+// Filtering task class for multithreading
+class FilterByLocationTask extends Thread {
+	private List<Hotel> hotels;
+	private String location;
+
+	public FilterByLocationTask(List<Hotel> hotels, String location) {
+		this.hotels = hotels;
+		this.location = location;
+	}
+
+	@Override
+	public void run() {
+		System.out.println("Filtering hotels by location: " + location + " in a separate thread...");
+		for (Hotel h : hotels) {
+			if (h.location.equals(location)) {
+				System.out.println(h);
+			}
+		}
+	}
+}
+
+public class Main {
+	// Print hotel data
+	public static <T> void printData(DataContainer<T> container) {
+		for (T item : container.getAll()) {
+			System.out.println(item);
+		}
+	}
+
+	// Sort hotels by name
+	public static void sortHotelByName(List<Hotel> hotels) {
+		System.out.println("Sorting hotels by name:");
+		Hotel.sortByName();
+		Collections.sort(hotels);
+		for (Hotel h : hotels) {
+			System.out.println(h);
+		}
+	}
+
+	// Print user data
+	public static void printUserData(String[] userName, int[] userId, int[] bookingCost, List<Hotel> hotels) {
+		DataContainer<User> users = new DataContainer<>();
+		for (int i = 0; i < 3; i++) {
+			User u = new User(userName[i], userId[i], bookingCost[i]);
+			users.add(u);
+		}
+		for (int i = 0; i < users.getAll().size(); i++) {
+			System.out.println(users.getAll().get(i) + " | Hotel: " + hotels.get(i).name);
+		}
+	}
+
+	// Hotel management function with multi-threaded tasks
+	public static void hotelManagement(String[] userName, int[] userId, String[] hotelName, int[] bookingCost, int[] rooms, String[] locations, int[] ratings, int[] prices, boolean[] wifi, boolean[] gym, boolean[] breakfast) {
+		// Initialize hotels data container
+		DataContainer<Hotel> hotelsContainer = new DataContainer<>();
+
+		// Add hotel data
+		for (int i = 0; i < 3; i++) {
+			Hotel h = new Hotel(hotelName[i], rooms[i], locations[i], ratings[i], prices[i], wifi[i], gym[i], breakfast[i]);
+			hotelsContainer.add(h);
+		}
+
+		List<Hotel> hotels = hotelsContainer.getAll();
+		printData(hotelsContainer);
+
+		// Sort hotels by name
+		sortHotelByName(hotels);
+
+		// Start multithreaded sorting and filtering tasks
+		SortByRatingTask sortByRatingTask = new SortByRatingTask(hotels);
+		FilterByLocationTask filterByLocationTask = new FilterByLocationTask(hotels, "Bangalore");
+
+		sortByRatingTask.start();
+		filterByLocationTask.start();
+
+		// Wait for threads to finish
+		try {
+			sortByRatingTask.join();
+			filterByLocationTask.join();
+		} catch (InterruptedException e) {
+			System.out.println("Thread interrupted.");
+		}
+
+		// Print user data
+		printUserData(userName, userId, bookingCost, hotels);
+	}
+
+	// Main function
+	public static void main(String[] args) {
+		String[] userName = {"U1", "U2", "U3"};
+		int[] userId = {2, 3, 4};
+		String[] hotelName = {"H1", "H2", "H3"};
+		int[] bookingCost = {1000, 1200, 1100};
+		int[] rooms = {4, 5, 6};
+		String[] locations = {"Bangalore", "Bangalore", "Mumbai"};
+		int[] ratings = {5, 4, 3};
+		int[] prices = {100, 200, 150};
+		boolean[] wifi = {true, false, true};
+		boolean[] gym = {true, true, false};
+		boolean[] breakfast = {true, false, true};
+
+		// Perform hotel management operations
+		hotelManagement(userName, userId, hotelName, bookingCost, rooms, locations, ratings, prices, wifi, gym, breakfast);
+	}
+}
+
